@@ -109,4 +109,46 @@ async function grayScale(pathIn, pathOut) {
   });
 }
 
-module.exports = {unzip, readDir, grayScale};
+function sepia(r,g,b) {
+  let newR = (r * 0.393) + (g * 0.769) + (b * 0.189);
+  newR = Math.min(255, newR);
+
+  let newG = (r * 0.349) + (g * 0.686) + (b * 0.168);
+  newG = Math.min(255, newG);
+
+  let newB = (r * 0.272) + (g * 0.534) + (b * 0.131);
+  newB = Math.min(255, newB);
+
+  return [Math.round(newR), Math.round(newG), Math.round(newB)]
+}
+
+async function toSepia(pathIn, pathOut) {
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(pathIn).pipe(
+        new PNG({
+          filterType: 4,
+        })
+      ).on('parsed', function () {
+        for (var y = 0; y < this.height; y++) {
+          for (var x = 0; x < this.width; x++) {
+            var idx = (this.width * y + x) << 2;
+
+            const [r, g, b] = sepia(this.data[idx], this.data[idx + 1], this.data[idx + 2]);
+            this.data[idx] = r;
+            this.data[idx + 1] = g;
+            this.data[idx + 2] = b;
+        
+          }
+        }
+        this.pack().pipe(fs.createWriteStream(path.join(pathOut, path.basename(pathIn))))
+          .on('finish', () => {
+            resolve();
+          })
+          .on('error', (error) => {
+            reject(error);
+          });
+      });
+  });
+}
+
+module.exports = {unzip, readDir, grayScale, toSepia };
